@@ -1,0 +1,1755 @@
+---
+title: "DATA ANALYSIS AND VISUALISATION PRINCIPLES ASSIGNMENT REPORT"
+author: "JONES KWAME OSEI (S4112106)"
+date: "`r Sys.Date()`"
+output: 
+  word_document:
+      toc: yes
+      toc_depth: 5
+---
+
+# Introduction <br>
+The purpose of this assignment project is to download, reshape and combine from a two years period of *Crown Prosecution Service Case Outcomes* by *Principal Offence Category*. We will use various data analytic tools and techniques for descriptive and predictive analysis by using different techniques. Varying analysis and interpretation of various outcomes will be made through descriptive analytics. <br
+The analytical tools used were also critically analysed in this report as well as the effectiveness effectiveness of the techniques employed. We will have a careful look at the visualisation tools utilised in the assignment.  
+
+## Overview
+### General Hypothesis
+
+Definitions of the hypotheses based on the current datasets are that there exists a correlation between specific variables. The more specific hypothesis is that the number of robbery offenses successful can be predicted using the remaining numerical variables.  
+
+
+```{r global-options, include=FALSE, results='hide'}
+knitr::opts_chunk$set(fig.show = "hide", 
+                      echo = FALSE, warning = FALSE,
+                      message = FALSE)
+```
+
+
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results='hide'}
+install.packages("TH.data") 
+install.packages("factoextra")
+install.packages("tidyverse") 
+install.packages("party")
+install.packages("ggplot2") 
+install.packages("gganimate")
+install.packages("gifski")
+install.packages("av")
+install.packages("ggmap")  # cite it if used 
+install.packages("lubridate") 
+install.packages("Hmisc") 
+install.packages("devtools") 
+install.packages("skimr") 
+install.packages("purrr") 
+install.packages("fs") 
+install.packages("DataExplorer") 
+install.packages("GGally") 
+install.packages("inspectdf") 
+install.packages("GGally") 
+install.packages("hrbrthemes")
+install.packages("devtools")
+install.packages("caret")
+install.packages("zoo")
+install.packages("Metrics")
+install.packages("plotly")
+devtools::install_github("ropensci/visdat") 
+install.packages("rpart")
+install.packages("class")
+install.packages("tree")
+install.packages("rattle")
+
+
+
+
+library(tidyverse)
+library(lubridate)
+library(party)
+library(factoextra)
+library(pastecs)
+library(Hmisc)
+library(skimr)
+library(devtools)
+library(visdat)
+library(ggplot2)
+library(DataExplorer)
+library(inspectdf)
+library(GGally)
+library(dplyr, warn.conflicts = FALSE)
+library(ggplot2)
+library(hrbrthemes)
+library(corrplot)
+library(broom)
+library(ggpubr)
+library(caret)
+library(plotly)
+library(ggmap)
+library(rstudioapi)
+library(grid)
+library(mvtnorm)
+library(modeltools)
+library(stats4)
+library(strucchange)
+library(zoo)
+library(Metrics)
+library(rpart)
+library(class)
+library(plyr)
+library(tree)
+library(rattle)
+library(sjmisc)
+library(sjPlot)
+
+
+options(dplyr.summarise.inform = FALSE)
+
+
+```
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+# data importation
+
+
+data <- list.files(path="./AssaignmentData", full.names = TRUE, recursive = TRUE,
+                   pattern = ".csv$")
+
+```
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+emptydf = matrix(ncol = 0, nrow = 0)
+```
+
+```{r, echo=FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+for(i in 1:length(data)){
+  df1 <- read.csv(data[i])
+  year_df <- as.data.frame(str_split(data[i],'/'))
+  year<- year_df[3,]
+  
+  monthpath <- year_df[4,]
+  month_df <- as.data.frame(str_split(monthpath,'_'))
+  month <- month_df[4,]
+  
+  date <- paste(month,year)
+  df1$date <- date
+  class(df1$date)
+  df1$date <- my(date)
+  
+  #year
+  df1$year <- year
+  df1$month <- month.abb[month(as.POSIXct(df1$date, formart = "Y-%m-%d"))]
+  emptydf <- rbind(emptydf,df1)
+}
+```
+
+
+```{r, echo=FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+All_Crimes <- emptydf
+```
+
+# Data Cleaning <br>
+Data cleaning, also called data cleansing or scrubbing, deals with detecting and removing errors and inconsistencies from data in order to improve the quality of data. [1] This should be the first data analyst should begin with. Without acknowledging errors in data makes the analysis vulnerable and susceptible to fail. 
+
+Detecting and repairing dirty data is one of the perennial challenges in data analytics, and failure to do so can result in inaccurate analytics and unreliable decisions[2]. Today's business and services decision making hugely depends on storing and obtaining data big amounts of data. These datasets can support and improve management decision as well as exponentially optimising services. 
+
+Notwithstanding these importance, the quality of data continues to be a greater concern for individuals, service providers, private and government institutions. The quality of data can can positively or negatively affect the decision and make analysis unrealistic. Thus, dirty or uncleaned data can lead to inaccurate decision. To avoid this, we have a duty as a data scientists to effectively detect very error in our data and subsequently repair or correct those errors. Some of these errors are as a result of data entry especially if those making the entry are untrained to carry out that task. Some commons mistakes like typo error, adding commas to figures, incorrect date format, duplicate entries and many can render a data uncleaned.   
+
+Due to the forgone, there is the need to clean our data to have something more meaningful in order to make tangible inferences from it. The conversion of raw data into a form that will make is less difficult to understand and interpret. This can be achieved by rearranging, ordering, and manipulating data to provide a more insightful information about our data. 
+
+## Justification for Data Cleaning: 
+We are cleaning our dataset to have a cleaned and a good data to derived at a realistic analysis to obtain a result that can effectively support decision. Generally, data cleaning reduces errors and improves the data quality.[3] Some of the data cleaning techniques adopted in this project include removing of irrelevant entry, handling missing values, convert data type, standardise capitalisation and wording, renaming, clear formatting, fixing error and duplication.
+
+The justification for the integration and data cleaning is that the data is provided in parts, and it is desirable to implement the analysis on every year or on the entire period also it is necessary to clean the data from na values. 
+
+First, we have to have a look at the structure of our data in order to reshape it to a finished dataset that can be used for our various analysis <br>
+
+### Data Structure Before Cleaning
+```{r, Structure of Dataset, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+str(All_Crimes)
+```
+
+The dataset before cleaning compose of characters and integers with characters being the dominant. We can find 1806 observations of  54 variables in the All_Crimes dataframe. In addition, there are no missing values in the dataset. The missing values will be further investigated later. <br>  
+
+We will now have to know the type of data we have uploaded. <br>
+```{r, Type of Dataset,  echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+typeof(All_Crimes)
+```
+### Techniques for Cleaning
+Real Data are never perfect because errors are are inevitable and may occur in creative and unexpected way.[4] So we have to painstakingly fist pinpoint issues in the data rendering it bad. The techniques for cleaning our data include the following: <br>
+
+#### 1. removing of irrelevant entry: <br>
+Entries that are not important to our analysis will only make it slow and might even confuse the analysis we want to do. Ensuring only what is relevant and necessary before we begin our analysis is key to success. In our dataset, we could see that there are percentage columns which are not needed in the analysis we want to do. But we decided to deal with the percentage symbol first leaving the number. This was done to prove the way only the symbol is cleaned if we had wanted to use that column. Also, in our dataset, there are dashes (-), comma (,) and empty spaces that if not removed, can cause errors.The empty spaces are replied with zero (0). 
+
+```{r,  echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+# Clean percent
+percent_cleaner <- function(x){
+  gsub("%","",x)
+}
+All_Crimes <- as.data.frame(lapply(All_Crimes,percent_cleaner))
+```
+
+```{r,  echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+# Remove dash
+dash_replace <- function(x){
+  gsub("-","0.0",x)
+}
+All_Crimes <- as.data.frame(lapply(All_Crimes,dash_replace))
+```
+
+```{r,  echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+# Remove comma and empty spaces
+comma_replace <- function(x){
+  gsub(",","",x)
+}
+All_Crimes <- as.data.frame(lapply(All_Crimes,comma_replace))
+```
+
+```{r,  echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+#replace data
+All_Crimes$date<- emptydf$date
+```
+
+#### 2. Rename County: <br>
+The county column was initially named "X" and needed to be renamed. 
+```{r, Rename County,  echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+# rename county
+names(All_Crimes)[names(All_Crimes)=="X"] <- "County"
+```
+
+#### Converting Data Type: <br>
+All variables were read by R as characters. We needed to change from range two to 51 (2:51) from characters to numbers so that R can read them as numbers instead of characters. This because R initially imputed the numbers as texts. However, to be able to processed them, they need to changed to numerals. <br><br> 
+Our analysis algorithms will not compute any mathematical input becuase they are classed as a string character as they appear in texts. Same as the dates as they stored as texts. Hence, we also convert them to numerical. <br>
+```{r Convert Char to Num,  echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+num_df <- All_Crimes[2:51]
+
+All_Crimes[2:51] <- as.data.frame(lapply(num_df, as.numeric))
+```
+
+```{r,  echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+view(All_Crimes)
+```
+
+
+#### Removing Percentage columns: <br>
+Since our analysis will not be based on percentages, we decided to remove them from the dataset. 
+```{r, Remove Pecentage columns,  echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+All_Crimes <- All_Crimes %>%
+  select(County, year, month, starts_with("Number"), date)
+```
+
+#### Rename Columns with longer names: <br>
+We could observe that the columns names of our data frame were very long and could be difficult to call in code. For this reason, they are renamed for a shorter name so they can be called easily.
+```{r, Rename columns,  echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+names(All_Crimes)
+
+names(All_Crimes)[4:28] <- c("Homicide_convict", "Homicide_unsuc", "OffencesAgt_Person_convict", "OffencesAgt_Person_unsuc",
+                       "Sexual_Offences_convict", "Sexual_Offences_unsuc", "Burglary_convict", "Burglury_unsuc", "Robbery_Convict",
+                       "Robbery_unsuc", "Theft_Handling_Convict", "Theft_Handling_unsuc", "Fraud_Forgery_Convict",
+                       "Fraud_Forgery_unsuc", "Criminal_Damage_convict", "Criminal_Damage_unsuc", "Drugs_Offences_convict", 
+                       "Drugs_Offences_unsuc", "Public_Order_Offences_convict", "Public_Order_Offences_unsuc",
+                       "All_Other_Offences_convict_ex_motor_offences",  "All_Other_Offences_unsuc_ex_motor_offences",
+                       "Motor_Offences_convict", "Motor_Offences_unsuc", "Admin_Finalised_unsuc")
+```
+
+```{r,  echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+colnames(All_Crimes)
+```
+
+#### Standardise capitalisation and wording: <br>
+Within this dataset, we have to ensure that the texts are congruent to each other. Any mixture or in consistencies of wording and capitalisation can easily cause errors in categories.Due to this, all dates and months were given capital letters in their initials. <br> <br>
+This will avoid any issues when we need to translate before processing as capitilisation can cause R to misinterpret. 
+#### Remove National from the county row.
+The national column sums all the crime cases for each case which we chose not to include in our analysis, hence, removed it from the data frame. 
+```{r,  echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+All_Crimes <- All_Crimes %>%
+  filter(County != "National")
+```
+
+
+# Descriptive Analysis <br>
+*Descriptive Analysis* is a way to show, describe and summarise data in a more constructive way so that the patterns that emerge will compliment every condition of the data[5 blog]. <br>
+
+All over the world, *big data and data science* have been in the *ascendancy*. They help support organisations and cooperates to maximise profits and services. However, to get the most out of every data, there has to be an extensive research into it as this makes the data to be processed and studied with higher level of scrutiny. <br>
+
+The data should be analysed to produce an in depth insight and influential trends which allows those that follow to be made to gain public approval. Descriptive Data Analysis is one of the most relevant procedures when making statistical analysis of our dataset. It assits us with a conclusion of the distribution of our dataset. Also, it enables us to detect outliers and helps us to identify similarities within our variables that will put us in a position for making further statistical analysis. <br>  
+
+Under this section, we will further break our descriptive analysis in two parts. That is the Basic Data Exploratory Analysis and Advanced Exploratory analysis.
+
+## Basic Exploaratory Data Analysis
+Exploratory Data Analysis (EDA) is usually intended to generate hypotheses and not to lead to final conclusions based on the results of the study [4]. This is done to know the dataset we will be working with. It is a good step even before data cleaning and after data cleaning before any data analysis is done.
+
+Data analysis is the process of extracting insights from data. Data is heterogeneous in all ways, and processing such data is a challenge. Before applying any machine learning model to any datasets, it is necessary to understand the problem, deal with the missing values and noise, visualize the dataset, and to select the machine learning model to analyze the data[6].
+
+
+
+### The Head() and Tail() of our dataset <br>
+Since it will be hard to digest a huge amount of rows of our data which has twenty columns and thousands of rows, we will be looking at the first ten and last rows of our dataset. <br>
+
+```{r, Head of All_Crimes,  echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+head(All_Crimes, 10)
+```
+The the above displays the first ten (10) rows present in the input dataframe.
+
+```{r, Tail of Dataset,  echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+tail(All_Crimes, 10)
+```
+The the above displays the last ten (10) rows present in the input dataframe.
+
+### Data Structure after Cleaning
+```{r, Structure after cleaning,  echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+str(All_Crimes)
+```
+From the above, the dataset after cleaning composes of characters and numbers with numbers being the dominant as compared to the structure before cleaning. Also, We can see the number of observations after cleaning is 1764 obs. of  29 variables instead of the 1806 observations of  54 variables in the All_Crimes dataframe before cleaning. <br> <br> Again, no missing values were identified in the dataset. The missing values will look into the missing values later. <br>  
+
+### Dimension of Dataframe after cleaning
+We will have a look at the dimension of our data <br>
+```{r, Dimension of dataset,  echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+dim(All_Crimes)
+```
+### let's display the type and a preview of all columns as a row <br> 
+```{r, Glimpse,  echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+glimpse(All_Crimes)
+```
+
+We have seen a preview of all the columns as well as row and the type of data. We can see every column in a data frame showing details of 1,764 rows belonging 29 columns.
+
+### Summary of the dataset <br>
+Descriptive statistics of our dataframe can be computed by three methods. These are: <br>
+
+#### 1. Descriptive statistics with the summary(). <br>
+Using the summary()function automatically applied to each column and the resulting format relies on the type of data in each column. Thus:<br>
+- A column with numeric variables returns mean, median, minimum (min), maximum (max) and quantile.
+- Columns with factor variables also return the number of observations in each group group. <br><br> 
+Hence, descriptive Statistics simple calculates: <br>
+- minimum value of each column
+- maximum value of each column
+- mean value of each column
+- median value of each column
+- 1st quantile  of each column (25th percentile)
+- 3rd quantile of each column (75th percentile) <br>
+
+  - Example: 
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+summary(All_Crimes)
+```
+#### SUmmary statistics of a column
+```{r,  echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+summary(All_Crimes$Homicide_convict)
+```
+
+
+```{r,  echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+summary(All_Crimes$Homicide_unsuc)
+
+```
+#### 2. Summary statistics using stat.desc() function: <br>
+This does a bit more then the simple describe() function. It also Calculates 
+- The number of missing values and null of each column
+- The number of non missing values of each column
+- sum, range, variance and standard deviation for each column too.
+```{r,  echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+stat.desc(All_Crimes)
+```
+#### 3. Descriptive statistics with describe() function
+
+Here, the *Hmsic* package is used and it calculates the distinct values of each column, frequency of each value and proportion of that values in the column as indicated below. <br>
+```{r,  echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+describe(All_Crimes)
+```
+
+We will deeply investigate to know more about our dataset by using the skim(). It presents most of the numerical attributes from the summary. Again, it displays missing values, more quantile details and inline histogram for each variable. <br>
+
+```{r Skim,  echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+skim(All_Crimes)
+```
+From the output, we can see the data summary of our dataset that has *three column type frequencies* including: <br>
+column Type | Frequency
+------------- | -------------
+Character | 3
+Date | 1
+Numeric | 25
+
+The data summary also indicates there are no missing values found in the 29 columns and 1764 rows and has none group variables. <br>
+
+## Investigating the missing values. <br>
+We are now delving into our dataset to acertain if there are actually no missing values in our datta set. We can do this by testing the dataset or visualising it. <br>
+- test:<br>
+```{r Test Missing Values, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+colSums(is.na(All_Crimes))
+```
+
+This returned a number zero in each element location indicating there are no missing values in our dataset. 
+
+Alternatively, we can do this by visualising it: <br>
+```{r Vis.Data,  echo = FALSE, message = FALSE, warning = FALSE}
+vis_miss(All_Crimes)
+```
+The graphical representation above indicates that we have 100% of the values in our data, hence, there are no missing values.
+
+### Visualise the Data Types
+```{r,  echo = FALSE, message = FALSE, warning = FALSE}
+vis_dat(All_Crimes)
+```
+## Plotting the dataset structure
+```{r, Plot structure,  echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+plot_str(All_Crimes)
+```
+
+## Plotting the bar chart for each discrete feature
+```{r,  echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+plot_bar(All_Crimes)
+```
+
+## The charts can also be grouped by a discrete variable, e.g. the presence of a Robbery
+plot_bar(All_Crimes, by="County")
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+plot_bar(All_Crimes, by="County")
+```
+
+```{r,  echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+plot_bar(All_Crimes, by="year")
+```
+## Plotting quantile-quantile for each continuous feature
+```{r,  echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+plot_qq(All_Crimes)
+```
+From quantile plots, we can observe that the charts are showing the data are not normally distributed because the plots are skewed from the straightlines. <br> It can be inferred that there are outliers in the dataset. Hence, the distributions are skewed.
+
+## Plots density estimates for each continues feature
+```{r,  echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+plot_density(All_Crimes)
+```
+
+## Visualise correlation heatmap
+```{r,  echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+plot_correlation( All_Crimes)
+```
+
+## Visualising the principal components
+```{r,  echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+plot_prcomp(All_Crimes$County)
+```
+
+```{r,  echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+## change plot size (optional)
+options(repr.plot.width = 20, repr.plot.height = 30)
+
+All_Crimes %>% 
+  select("Homicide_convict", "Homicide_unsuc", "Drugs_Offences_convict") %>%
+  ggpairs(mapping = aes(color = All_Crimes$month, alpha = 0.5))
+```
+## Inspecting the dataset
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+inspect_types(All_Crimes)
+```
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+
+inspect_types(All_Crimes) %>%
+  show_plot()
+```
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+inspect_num(All_Crimes) %>%
+  show_plot()
+```
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+inspect_mem(All_Crimes) %>%
+  show_plot() 
+```
+
+# Advance Exploratory Data Analysis.
+
+## Creating a variable called total_crime to input all crimes together for each county.
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+total_crime <- apply(All_Crimes[4:28],1,sum)
+All_Crimes$Total_crime <- total_crime 
+
+colnames(All_Crimes)
+
+```
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+#creating variables called unsuccessful crime conviction (Unsuc_convict) to compute all unsuccessful cases
+unsuc_df <- All_Crimes %>%
+  select(contains('unsuc'))
+
+All_Crimes$Unsuc_crime_convict <- apply(unsuc_df,1,sum)
+
+#creating variables called unsuccessful crime conviction (Unsuc_convict)
+# successful total
+suc_df <- All_Crimes %>%
+  select(contains('convict'))
+
+All_Crimes$Suc_crime_convict <- apply(suc_df,1,sum)
+```
+
+## Visualising All crimes
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+suc_df %>% 
+  gather(key='convit_type', value = 'crime_values') %>%
+  group_by(convit_type) %>%
+  dplyr::summarise(total=sum(crime_values)) %>%
+  ggplot(aes(x=reorder(convit_type,+total),y=total)) +
+  geom_col(aes(fill=convit_type)) +
+  coord_flip() + theme(legend.position = 'none')
+```
+
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+suc_df %>%
+  gather(key='convit_type', value = 'crime_values') %>%
+  group_by(convit_type) %>%
+  dplyr::summarise(total=sum(crime_values)) %>%
+  ggplot(aes(x=reorder(convit_type,+total),y=total)) +
+  geom_bar(stat = "identity")
+```  
+
+## Visualising Successful crime conviction Distribution
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+#Visualize the total crime for each year
+All_Crimes %>%
+  select(month,year,Suc_crime_convict) %>%
+  group_by(month,year) %>%
+  dplyr::summarize(total.convict=sum(Suc_crime_convict)) %>%
+  ggplot(aes(x=reorder(month,+total.convict),y=total.convict,fill=year)) + 
+  geom_col() +
+  labs(x = 'month', y='Total Conviction',
+       title = 'Convictions per month in years') +
+  coord_flip()
+
+```
+
+
+## Successful crime conviction in 2015
+```{r, sful per month, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+All_Crimes %>%
+  filter(year == 2014) %>%
+  select(month,Suc_crime_convict) %>%
+  group_by(month) %>%
+  dplyr::summarize(total.convict=sum(Suc_crime_convict)) %>%
+  ggplot(aes(x=reorder(month,+total.convict),y=total.convict,fill=month)) + 
+  geom_col() +
+  labs(x = 'month', y='Total successful conviction',
+       title = 'Successful per month in 2014')+
+  coord_flip()
+
+```
+
+```{r, sful per month(2014), echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+All_Crimes %>%
+  filter(year == 2014) %>%
+  select(month,Suc_crime_convict) %>%
+  group_by(month) %>%
+  dplyr::summarize(total.convict=sum(Suc_crime_convict)) %>%
+  ggplot(aes(x=reorder(month,+total.convict),y=total.convict)) + 
+  geom_col()
+```
+
+## Successful crime conviction in 2015
+```{r, successful , echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+All_Crimes %>%
+  filter(year == 2015) %>%
+  select(month,Suc_crime_convict) %>%
+  group_by(month) %>%
+  dplyr::summarize(total.convict=sum(Suc_crime_convict)) %>%
+  ggplot(aes(x=reorder(month,+total.convict),y=total.convict,fill=month)) + 
+  geom_col() +
+  labs(x = 'month', y='Total successful conviction',
+       title = 'Successful per month in 2015')+
+  coord_flip()
+```
+
+```{r, successful per month(2015), echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+#Alternative with geom bar
+All_Crimes %>%
+  filter(year == 2015) %>%
+  select(month,Suc_crime_convict) %>%
+  group_by(month) %>%
+  dplyr::summarize(total.convict=sum(Suc_crime_convict)) %>%
+  ggplot(aes(x=reorder(month,+total.convict),y=total.convict,fill=month)) + 
+  geom_bar(stat='identity') +
+  theme_bw() +
+  labs(x = 'month', y='Total successful conviction',
+       title = 'Successful per month in 2015')
+```
+
+## Successful crime conviction in 2016
+```{r, successful per month(2016), echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+All_Crimes %>%
+  filter(year == 2016) %>%
+  select(month,Suc_crime_convict) %>%
+  group_by(month) %>%
+  dplyr::summarize(total.convict=sum(Suc_crime_convict)) %>%
+  ggplot(aes(x=reorder(month,+total.convict),y=total.convict,fill=month)) + 
+  geom_col() +
+  labs(x = 'month', y='Total successful conviction',
+       title = 'SSucessful per month in 2016')+
+  coord_flip()
+
+```
+
+## Successful crime conviction in 2017
+```{r, successful for month in 2017, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+All_Crimes %>%
+  filter(year == 2017) %>%
+  select(month,Suc_crime_convict) %>%
+  group_by(month) %>%
+  dplyr::summarize(total.convict=sum(Suc_crime_convict)) %>%
+  ggplot(aes(x=reorder(month,+total.convict),y=total.convict,fill=month)) + 
+  geom_col() +
+  labs(x = 'month', y='Total successful conviction',
+       title = 'Successful per month in 2017')+
+  coord_flip()
+
+```
+
+```{r, successful per month(2017), echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+All_Crimes %>%
+  filter(year == 2017) %>%
+  select(month,Suc_crime_convict) %>%
+  group_by(month) %>%
+  dplyr::summarize(total.convict=sum(Suc_crime_convict)) %>%
+  ggplot(aes(x=reorder(month,+total.convict),y=total.convict,fill=month)) + 
+  geom_col() +
+  labs(x = 'month', y='Total successful conviction',
+       title = 'Successful per month in 2017')
+```
+
+## Visualising unsuccessful crime distribution
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+All_Crimes %>%
+  select(month,year,Unsuc_crime_convict) %>%
+  group_by(month,year) %>%
+  dplyr::summarize(total.unsc=sum(Unsuc_crime_convict)) %>%
+  ggplot(aes(x=reorder(month,+total.unsc),y=total.unsc,fill=year)) + 
+  geom_col() +
+  labs(x = 'month', y='Total Unsuccessful conviction',
+       title = 'Unsucessful per month in years')+
+  coord_flip()
+
+```
+
+
+### unsuccessful crime distribution for 2014
+```{r, unsuccessful per month in 2014, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+All_Crimes %>%
+  filter(year == 2014) %>%
+  select(month,Unsuc_crime_convict) %>%
+  group_by(month) %>%
+  dplyr::summarize(total.unsc=sum(Unsuc_crime_convict)) %>%
+  ggplot(aes(x=reorder(month,+total.unsc),y=total.unsc,fill=month)) + 
+  geom_col() +
+  labs(x = 'month', y='Total Unsuccessful conviction',
+       title = 'Unsucessful per month in 2014')+
+  coord_flip()
+```
+
+### unsuccessful crime distribution for 2015
+```{r, unsuccessful per month in (2015), echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+All_Crimes %>%
+  filter(year == 2015) %>%
+  select(month,Unsuc_crime_convict) %>%
+  group_by(month) %>%
+  dplyr::summarize(total.unsc=sum(Unsuc_crime_convict)) %>%
+  ggplot(aes(x=reorder(month,+total.unsc),y=total.unsc,fill=month)) + 
+  geom_col() +
+  labs(x = 'month', y='Total Unsuccessful conviction',
+       title = 'Unsucessful per month in 2015') +
+  coord_flip()
+```
+
+### unsuccessful crime distribution for 2016
+```{r, unsuccessful per month in (2016), echo = FALSE}
+All_Crimes %>%
+  filter(year == 2016) %>%
+  select(month,Unsuc_crime_convict) %>%
+  group_by(month) %>%
+  dplyr::summarize(total.unsc=sum(Unsuc_crime_convict)) %>%
+  ggplot(aes(x=reorder(month,+total.unsc),y=total.unsc,fill=month)) + 
+  geom_col() +
+  labs(x = 'month', y='Total Unsuccessful conviction',
+       title = 'Unsucessful per month in 2016')+
+  coord_flip()
+```
+
+### unsuccessful crime distribution for 2017
+```{r, unsuccessful for 2017 , echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+All_Crimes %>%
+  filter(year == 2017) %>%
+  select(month,Unsuc_crime_convict) %>%
+  group_by(month) %>%
+  dplyr::summarize(total.unsc=sum(Unsuc_crime_convict)) %>%
+  ggplot(aes(x=reorder(month,+total.unsc),y=total.unsc,fill=month)) + 
+  geom_col() +
+  labs(x = 'month', y='Total Unsuccessful conviction',
+       title = 'Unsucessful per month in 2017')+
+  coord_flip()
+```
+
+### Find top counties per total crime
+```{r, Top 5 counties , echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+# Find top counties per total crime
+top_county <- All_Crimes %>%
+  group_by(County) %>%
+  dplyr::summarise(Total_crime = sum(Total_crime)) %>%
+  arrange(desc(Total_crime)) %>%
+  top_n(5) %>%
+  pull(County)
+```  
+#### Top five Counties with Hihest Crime Cases
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+All_Crimes %>%
+  filter(County %in% top_county) %>%
+  group_by(County, year) %>%
+  dplyr::summarise(Total_crime = sum(Total_crime)) %>%
+  ggplot(aes(x=County, y=Total_crime, fill=year)) + 
+  geom_bar(position="dodge", stat="identity") +
+  coord_flip()
+```
+
+
+### Counties with most Crimes from 2014 to 2017 
+```{r, Most Crime counties , echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+# Counties with most Crimes from 2014 to 2017 
+All_Crimes %>%
+  filter(County %in% top_county) %>%
+  group_by(year, County) %>%
+  dplyr::summarise(Total_crime = sum(Total_crime)) %>%
+  ggplot(aes(x=year, y=Total_crime, fill=County)) + 
+  geom_bar(position="dodge", stat="identity")
+```
+
+### Total Crimes from 2014 to 2017 with a voilin plot
+
+```{r, Voilin plot , echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+# Most Crimes from 2014 to 2017 with a voilin plot
+ggplot(All_Crimes, aes(x = Total_crime, y = year, fill = year)) +
+  geom_violin()
+```
+
+### Average crime distribution for each year
+```{r,Average crime dist 1 , echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+#Average crime distribution for each year
+All_Crimes %>%
+  group_by(year) %>%
+  dplyr::summarise(average.crime = mean(Total_crime)) %>%
+  ggplot(aes(x=year, y=average.crime, fill= year)) + 
+  geom_col(position="dodge") + 
+  ggtitle("Average crime distribution by Years 2014, 2015, 2016 and 2017") + 
+  coord_flip() + theme(legend.position = 'none')
+```
+
+### Average Robbery Within Each Year
+
+#### for 2014
+
+```{r, Average robbery in 2014 , echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+# Visualising Robbery Per each year
+# Average Robbery for 2014
+
+All_Crimes %>%
+  filter(year==2014) %>%
+  group_by(month) %>%
+  dplyr::summarise(avg.total.robbery = mean(Total_crime)) %>%
+  arrange(desc(avg.total.robbery)) %>%
+  ggplot(aes(x=month, y=avg.total.robbery, fill=month)) + 
+  geom_bar(position="dodge", stat="identity") + 
+  ggtitle("Average Robbery crime type distributed by month for 2014") + 
+  coord_flip() + theme(legend.position = 'none')
+```
+
+### for 2015
+
+```{r, Average robbery 2015 , echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+# Average Robbery for 2015
+All_Crimes %>%
+  filter(year==2015) %>%
+  group_by(month) %>%
+  dplyr::summarise(avg.total.robbery = mean(Total_crime)) %>%
+  arrange(desc(avg.total.robbery)) %>%
+  ggplot(aes(x=month, y=avg.total.robbery, fill=month)) + 
+  geom_bar(position="dodge", stat="identity") + 
+  ggtitle("Average Robbery crime type distributed by month for 2015") + 
+  coord_flip() + theme(legend.position = 'none')
+```
+
+#### for 2016
+
+```{r, Average robbery 2016 , echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+# Average Robbery for 2016
+All_Crimes %>%
+  filter(year==2016) %>%
+  group_by(month) %>%
+  dplyr::summarise(avg.total.robbery = mean(Total_crime)) %>%
+  arrange(desc(avg.total.robbery)) %>%
+  ggplot(aes(x=month, y=avg.total.robbery, fill=month)) + 
+  geom_bar(position="dodge", stat="identity") + 
+  ggtitle("Average Robbery crime type distributed by month for 2016") + 
+  coord_flip() + theme(legend.position = 'none')
+```
+
+#### for 2017
+
+```{r, Average robbery 2017 , echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+# Average Robbery for 2017
+All_Crimes %>%
+  filter(year==2017) %>%
+  group_by(month) %>%
+  dplyr::summarise(avg.total.robbery = mean(Total_crime)) %>%
+  arrange(desc(avg.total.robbery)) %>%
+  ggplot(aes(x=month, y=avg.total.robbery, fill=month)) + 
+  geom_bar(position="dodge", stat="identity") + 
+  ggtitle("Average Robbery crime type distributed by month for 2017") + 
+  coord_flip() + theme(legend.position = 'none')
+```
+
+
+### Average Crime Type Distribution
+
+```{r, Average crime dist2 , echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+All_Crimes3 <- All_Crimes %>% 
+  filter(year==2017) %>%
+  group_by(month) %>%   
+  dplyr::summarise(Ave_Homicide_unsuc = mean(Homicide_unsuc), 
+                   Ave_Offences_Agt_Person_unsuc = mean(OffencesAgt_Person_unsuc),
+                   Ave_Sexual_Offences_unsuc = mean(Sexual_Offences_unsuc), 
+                   Ave_Burglury_unsuc = mean(Burglury_unsuc),
+                   Ave_Robbery_unsuc = mean(Robbery_unsuc), 
+                   Ave_Theft_Handling_unsuc = mean(Theft_Handling_unsuc),
+                   Ave_Fraud_Forgery_unsuc = mean(Fraud_Forgery_unsuc), 
+                   Ave_Criminal_Damage_unsuc = mean(Criminal_Damage_unsuc), 
+                   Ave_Drugs_Offences_unsuc = mean(Drugs_Offences_unsuc),
+                   Ave_Public_Order_Offences_unsuc = mean(Public_Order_Offences_unsuc),
+                   Ave_All_Other_Offences_unsuc_ex_motor_offences= mean(All_Other_Offences_unsuc_ex_motor_offences),
+                   Ave_Motor_Offences_unsuc = mean(Motor_Offences_unsuc)) %>% 
+  gather(key="crime_type", value = "values", -month) 
+
+
+All_Crimes3 %>%
+  group_by(crime_type) %>%
+  dplyr::summarise(total_conv = sum(values)) %>%
+  arrange(desc(total_conv)) %>%
+  top_n(10) %>%
+  ggplot(aes(x=reorder(crime_type,+total_conv),y=total_conv,fill=crime_type)) + 
+  geom_col(position="dodge", stat="identity") + 
+  ggtitle("Average crime type distributed by County for 2017")+
+  coord_flip() + theme(legend.position = 'none')
+```
+# Critical Review of the Visualisation Tools: <br>
+The advanced exploratory data analysis was done by using various visualistion tools. However, some were more effective than others in terms of appearance and readability. Some too could give a aesthetic look and could make decision making easy by making it less difficult for everyone comprehending the. 
+
+For instance, figures which has fills, labels and themes give more accurate and vivid information than those which did not. Again, those which have no labels, fills and themes gave no information and ambiguous to read. Just Looking at them gave no adequate information as compared to thr former.  
+
+
+# Predictive Analysis: <br>
+Predictive analysis is simply forecasting the future using data combined with statistical modelling through machine learning. The data in this case can be historical, that is, having a look at past events and real-time data, events happening currently around us. <br><br>
+The data collected is of no use unless some useful information is derived from it. Therefore, it is essential to think of some predictive analysis for analyzing data and to get meaningful information[7]
+
+In this session, we will make predictions using regression, clustering and classification.<br>
+
+## Covariance and Correlation Analysis: <br>
+There is the need to do correlation analysis before the regression. Correlation simply is when a change in a variable effects or causes a significant change in another. The vice versa is the case of uncorrelated variables. Thus, correlation measures the relationship between variables. In testing whether robbery conviction was dependent on burglary, if there is an increase in burglary causes a corresponding increase in robbery, then we can statistically assume that there is a correlation between the two. Hence, the need for correlation analysis.
+
+So, the purpose of correlation analysis is to determine the absence (dissociation) or presence (association) of a relationship between two variables. If they are uncorrelated, we will be able to measure the weakness of their association. Also, if they are correlated it easy to measure their strength of association. Thus, we can find the numerical values that shows the degree of relationship between the two variables. This clearly and conclusively summaries the relationship between the two variables than what we will find in our regression analysis.
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+
+CrimeData <- All_Crimes 
+
+colnames(CrimeData)
+plot(CrimeData[4:12])
+CrimeCor <- cor(CrimeData[6:12])
+```
+
+```{r, corplot, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+corrplot(CrimeCor)
+```
+
+### print the first 6 rows
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+# print the first 6 rows
+head(CrimeData, 6)
+```
+
+### Compute covariance and correlation matrix
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+# Compute covariance and correlation matrix
+CrimeData2 <- cov(CrimeData[6:12], method = "pearson")
+CrimeData2
+CrimeData3 <- cor(CrimeData2)
+CrimeData3
+round(CrimeData3, 2)
+CrimeData3
+```
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+## Correlation matrix with significance levels (p-value)
+rcorr(CrimeData3, type = "pearson")
+```
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+myCrimeData <- rcorr(as.matrix(CrimeData2))
+```
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+# correlation matrix
+CrimeData3
+```
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+#significance level
+myCrimeData
+```
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+##Extracting The Correlation coefficients
+myCrimeData$r
+```
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+##Extracting the p-values
+myCrimeData$P
+```
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+# formatting the correlation matrix
+
+# cormat : matrix of the correlation coefficients
+# pmat : matrix of the correlation p-values
+flattenCorrMatrix <- function(cormat, pmat) {
+  ut <- upper.tri(cormat)
+  data.frame(
+    row = rownames(cormat)[row(cormat)[ut]],
+    column = rownames(cormat)[col(cormat)[ut]],
+    cor =(cormat)[ut],
+    p = pmat[ut]
+  )
+}
+
+myCrimeData <- rcorr(as.matrix(CrimeData[,6:12]))
+
+flattenCorrMatrix(myCrimeData$r, myCrimeData$P)
+```
+
+### Visualize correlation matrix
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+
+corrplot(CrimeData3, type = "upper", order = "hclust", tl.col = "black", tl.srt = 10)
+```
+
+
+
+
+
+
+## Regression analysis <br>
+Regression analysis is a conceptually simple method for investigating functional relationship among variables [8]. Fro example, we want to examine whether offenders who were convicted for robbery is related to those convicted by burglary or drugs. This relationship can be expressed in the form of an equation or a model connecting the response or dependent variables and and one or more explanatory or predictive variables. In this our example, the response variable is robbery conviction (measured by the number of people that were successfully convicted in the variaous counties per year) and the explanatory or predictor variable are either burglary convictions or drug convictions. <br><br>
+
+This means that, regression analysis is mostly concerned with specifying the relationship between a single numeric dependent variable (The variable to be predicted) and one or more numeric independen variables (the predictors)[9]. The type of regression we will use in the analysis is the Linear Regression. <br>
+
+### Linear Regression: <br>
+This is a regression model that uses a straight line to show the relationship between the dependant variables and the predictors.
+
+It is known that linear regression provides the simplest model form to model the regression function as a linear combination of predictors. It is popular in applications, and several reasons account for its popularity given below. Because of the linear form, the model parameters are easily interpretable. In addition, linear model theories are well established with mathematical elegance. Moreover, linear regression is the building block for many modern modeling tools. In particular, when the sample size is small or the signal is relatively weak, linear regression often provides a satisfactory approximation to the underlying regression function.[10]
+
+#### Simple Linear Regression.
+Simple regression is the study of the dependence of a response on one predictor, usually by assuming that the mean of the response as a function of the predictor is a straight line [11].
+
+
+Null Hypothesis : There is no linear association between robbery and burglary conviction, in other words, the  increase of robbery is not dependent on burglary conviction.
+
+Alternative hypothesis : There is a statistical linear association between robbery and burglary, in other words,the increase in robbery comes as a result of an increase in burglary conviction.
+
+
+##### Simple Libear Model One <br>
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+# Linear model
+length.of.data <- 1:nrow(All_Crimes)
+trainlm <- sample(length.of.data,0.8*nrow(All_Crimes))
+train.data.set <- All_Crimes[trainlm,]
+test.data.set <- All_Crimes[-trainlm,]
+nrow(test.data.set)
+```
+
+##### Plotting our variables for Model One 
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+qplot(Burglary_convict, Robbery_Convict,data=All_Crimes, geom = "point") +
+  geom_smooth(method = "lm", se = FALSE)
+```
+Our guess about the statistical significant of this plot is we want to see if Burglary Cases and for that matter Burglary Convictions is a significant linear predictor of Robbery conviction. Based on the plot, it seems reasonable to guess that we will reject the null hypothesis here.
+##### Regression Analysis and Summary for Model one
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+
+model1 <- lm(Robbery_Convict~Burglary_convict,data = train.data.set)
+summary(model1)
+```
+The residuals are the difference observed and predicted values. It can be calculated Residual = Observed value – Predicted value.
+
+min           | 1Q      |Median |3Q    |Max
+------------- | --------|-------|------|------
+33.219        | -3.805  |0.289  |3.883 | 81.574
+
+*The Min*: It represents the data point below regression line 
+
+*1Q*: Is the 1st quantile which means 25% of the residual of model1 are less than -3.805.
+
+*Median*: The median of the residual of mode1 is 0.289. The median residual should be as close to zero (0) as possible
+
+*3Q*: The 3rd quantile where 25% of the residual of model1 are greater than 3.883
+From the summary of our model1, The Coefficients part presents:
+
+*max*: It represents the data point the spread above the regression line 
+
+The *mean* is not seen because it is always zero in linear regression since thats what they are optimised for.  
+
+1. The Estimate for the model parameters 
+   – the value of the y-intercept to be -6.043195
+   - the estimated effect of Burglary_convict on Robbery Conviction cases to be 0.509424
+
+2. The standard error of the estimated values (Std. Error) is 0.006453
+
+3. The test statistic (t value, in this case the t-statistic) is 78.95
+
+4. The p-value ( Pr(>| t | ) ), aka the probability of finding the given t-statistic if the null hypothesis of no relationship were true.
+
+5. The final three lines are model diagnostics – the most important thing to note is the pvalue (here it is 2.2e-16, or almost zero), which will indicate whether the model fits the data well.
+
+6. From these results, we can say that there is a significant positive relationship between Burglary conviction and Robbery conviction (p-value < 0.001), with a 0.509-unit (+/- 0.01) increase in Robbery conviction for every unit increase in Burglary conviction.
+
+In other words, we can see that the b1,obs values is around 0.509 which corresponds to a t,obs value of 78.95. We can interpret the meaning of the b1,obs in the context that, for everyone one case increase in Burglary conviction, we can expect Robbery conviction to increase by 0.509 conviction. 
+
+##### Conclusion of model1 <br>
+From the foregone, we have the sufficient primary evidence that the null hypothesis can be rejected. The initial guess that Burglary conviction is a significant linear predictor of Robbery conviction has supporting evidence. 
+
+
+##### Compute p-value
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+pt(78.95, df = 1409, lower.tail = FALSE)
+```
+
+
+##### Prediction for Model One
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+predictions.robbery <- predict(model1,test.data.set)
+
+actual.values <- test.data.set$Robbery_Convict
+
+
+mse(actual.values,predictions.robbery)
+```
+
+##### Plotting Simple Libear Model One Results
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+
+model1<-ggplot(All_Crimes, aes(x=Burglary_convict, y=Robbery_Convict))+ geom_point()
+
+model1
+
+#Adding the linear regression line to the above plotted graph
+model1 <- model1 + geom_smooth(method="lm", col="black")
+
+model1
+
+#Adding the equation for the regression line
+model1 <- model1 + stat_regline_equation(label.x = 3, label.y = 7)
+
+model1
+
+
+model1 + theme_bw() + labs(title = "Convicted cases on Robbery as a Results of Burglary ", 
+                                      x = "Convicted Burglary Cases", y = "Convicted Robbery Cases")
+
+
+model1 + theme_bw() + labs(title = "Convicted cases on Robbery as a Results of Burglary ", 
+                                      x = "Convicted Burglary Cases", y = "Convicted Robbery Cases")
+```
+
+
+##### Linear Model Two <br>
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+## Null Hypothesis = H0=There is no linear relationship between robbery and burglury conviction, in other words, the  increase of robbery is not 
+##.. dependent on burglary conviction.
+#### Alternative hypothesis = H1 = There is a statistical linear relationship between robbery and burglary, in other words,the increase in robbery
+####...comes as a result of an increase in burglary conviction.
+
+
+
+
+# Linear model 2
+length.of.data <- 1:nrow(All_Crimes)
+trainlm <- sample(length.of.data,0.8*nrow(All_Crimes))
+train.data.set <- All_Crimes[trainlm,]
+test.data.set <- All_Crimes[-trainlm,]
+nrow(test.data.set)
+```
+
+##### Plotting our variables for Model Two 
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+qplot(Drugs_Offences_convict, Robbery_Convict,data=All_Crimes, geom = "point") +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+##### Regression Analysis and Summary for Model Two
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+model2 <- lm(Robbery_Convict~Drugs_Offences_convict,data = train.data.set)
+summary(model2)
+```
+
+The residuals are the difference observed and predicted values. It can be calculated Residual = Observed value – Predicted value.
+
+min           | 1Q      |Median |3Q    |Max
+------------- | --------|-------|------|------
+-45.919       | -3.323  |-0.763 |1.964 | 57.745 
+
+*The Min*: It represents the data point below regression line 
+
+*1Q*: Is the 1st quantile which means 25% of the residual of model1 are less than -3.323  .
+
+*Median*: The median of the residual of mode1 is -0.763. The median residual should be as close to zero (0) as possible
+
+*3Q*: The 3rd quantile where 25% of the residual of model1 are greater than 1.964
+From the summary of our model1, The Coefficients part presents:
+
+*max*: It represents the data point the spread above the regression line 
+
+The *mean* is not seen because it is always zero in linear regression since thats what they are optimised for.  
+
+1. The Estimate for the model parameters 
+   – the value of the y-intercept to be -0.635
+   - the estimated effect of Burglary_convict on Robbery Conviction cases to be       0.1099
+
+2. The standard error of the estimated values (Std. Error) is 0.001412
+
+3. The test statistic (t value, in this case the t-statistic) is 77.896 
+
+4. The p-value ( Pr(>| t | ) ), aka the probability of finding the given t-statistic if the null hypothesis of no relationship were true.
+
+5. The final three lines are model diagnostics – the most important thing to note is the pvalue (here it is 2.2e-16, or almost zero), which will indicate whether the model fits the data well.
+
+6. From these results, we can say that there is a significant positive relationship between Burglary conviction and Robbery conviction (p-value < 0.001), with a 0.509-unit (+/- 0.01) increase in Robbery conviction for every unit increase in Burglary conviction.
+
+In other words, we can see that the b1,obs values is around 0.109952 which corresponds to a t,obs value of  77.896. We can interpret the meaning of the b1,obs in the context that, for everyone one case increase in Drug conviction, we can expect Robbery conviction to increase by  0.109952 conviction. 
+
+##### Conclusion of model2 <br>
+From the foregone, we have the sufficient primary evidence that the null hypothesis can be rejected. The initial guess that Drug conviction is a significant linear predictor of Robbery conviction has supporting evidence. 
+
+
+#####Prediction for Model Two
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+predictions.drug <- predict(model2,test.data.set)
+
+actual.values <- test.data.set$Robbery_Convict
+
+
+mse(actual.values,predictions.drug)
+```
+
+##### Plotting Simple Linear Model Two Results
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+
+model2<-ggplot(All_Crimes, aes(x=Burglary_convict, y=Robbery_Convict))+ geom_point()
+
+model2
+
+#Adding the linear regression line to the above plotted graph
+model2 <- model2 + geom_smooth(method="lm", col="black")
+
+model2
+
+#Adding the euquation for the regression line
+model2 <- model2 + stat_regline_equation(label.x = 3, label.y = 7)
+
+model2
+
+
+model2 + theme_bw() + labs(title = "Convicted cases on Robbery as a Results of Drug Cases ", 
+                                      x = "Convicted Drug Cases", y = "Convicted Robbery Cases")
+```
+
+#### Critcal Review of Model1 and Model2 of our linear regression. <br>
+Model | Prediction MSE
+------------- | -------------
+model1| 85.49862
+model2 | 71.05664
+
+
+
+In comparing the two prediction results above, model2 had the mean standard error closest to zero, 71.05664 as compared to 85.49862 of model1. Hence, model2 has a better accuracy since it had the lower value.  
+
+
+#### Multiple Linear Regression: <br>
+
+Multiple regression analysis (MR) is a highly flexible system for examining the relationship of a collection of independent variables (or predictors) to a single dependent variable (or criterion). The independent variables may be quantitative or categorical [mul reg]
+
+Null Hypothesis : There is no linear association between robbery and burglary and drug conviction, in other words, the  increase of robbery is not dependent on burglary and drug conviction.
+
+Alternative hypothesis : There is a statistical linear association between robbery and burglary and drug conviction. In other words, the increase in robbery comes as a result of an increase in burglary and drug conviction.
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+length.of.data <- 1:nrow(All_Crimes)
+trainlm <- sample(length.of.data,0.8*nrow(All_Crimes))
+train.data.set <- All_Crimes[trainlm,]
+test.data.set <- All_Crimes[-trainlm,]
+nrow(test.data.set)
+```
+
+##### Regression Analysis and Summary for Mutltiple Regression
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+multReg_model <- lm(Robbery_Convict~Drugs_Offences_convict + Burglary_convict, data = All_Crimes)
+# Sexual_Offences_convict is our dependent variable
+# Drugs_Offences_convict and Robbery_Convict are our independent variables which are regressed with tilda sign
+
+summary(multReg_model)
+```
+
+1. The estimated effect of Drug conviction on Robbery conviction is  0.058, while the estimated effect of Burglary_convict is 0.278.
+
+2. This means that for every 1% increase in Drug conviction, there is a correlated 0.058% increase in the conviction of robbery and for every 1% increase in Burglary_convict, there is a 0.278% increase in Robbery conviction.
+
+3. The standard errors for these regression coefficients are very small, and the t-statistics are comparatively small (21.89 and 23.25, respectively). The p-values reflect these small errors and t-statistics. For both parameters, there is almost zero probability that this effect is due to chance.
+
+##### Conclusion of Multiple Regression <br>
+From the foregone, we have the sufficient primary evidence that the null hypothesis can be rejected. There is a statistical evidence that Burglary and Drug convictions are significant linear predictors of Robbery conviction.  
+
+#####Prediction for Mutltiple Regression
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+predictions.drug <- predict(multReg_model,test.data.set)
+
+actual.values <- test.data.set$Robbery_Convict
+
+
+mse(actual.values,predictions.drug)
+```
+
+
+#Plotting our  Mutltiple Regression results
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+# 1. Create a new dataframe with the information needed to plot the model
+
+Plot.multReg_model <- expand.grid( Drugs_Offences_convict = seq(min(All_Crimes$Drugs_Offences_convict),
+  max(All_Crimes$Drugs_Offences_convict), length.out=30), Burglary_convict=c(min(All_Crimes$Burglary_convict),
+  mean(All_Crimes$Burglary_convict), max(All_Crimes$Burglary_convict)))
+
+# Predict the values of Robbery cases based on your linear model
+Plot.multReg_model$predicted.y <- predict.lm(multReg_model, newdata=Plot.multReg_model)
+
+# Round the smoking numbers to two decimals
+
+Plot.multReg_model$Burglary_convict <- round(Plot.multReg_model$Burglary_convict, digits = 2)
+
+# Change the ‘smoking’ variable into a factor
+Plot.multReg_model$Burglary_convict <- as.factor(Plot.multReg_model$Burglary_convict)
+
+# Plot the original data
+Robbery.plot <- ggplot(All_Crimes, aes(x=Drugs_Offences_convict, y=Robbery_Convict)) + geom_point()
+Robbery.plot
+
+
+Robbery.plot <- Robbery.plot + 
+  geom_line(data=Plot.multReg_model, aes(x=Drugs_Offences_convict, y=predicted.y,color=Burglary_convict),   size=1.25)
+
+Robbery.plot
+
+Robbery.plot <- Robbery.plot + theme_bw() +
+  labs(title = "Rates of Robbery Cases (% of population) \n as a function of
+Drug Cases and Burglary Cases",
+       x = "Drugs Cases (% of population)",
+       y = "Robbery Cases (% of population)",
+       color = "Burglary \n (% of population)")
+
+
+Robbery.plot
+```
+
+#### Critcal Review of Simple Linear Regression and Multiple Linear Regression. <br>
+Linear Regression | Prediction MSE
+------------- | -------------
+Simple model1 | 85.50
+Simple model2 | 71.06
+multiple Reg  | 48.81
+
+
+In comparing the prediction results above, multiple regression had the lower mean standard error, 48.81 as compared to  71.06 and 85.50 of model2 and model1 respectively. Hence, multiple regression has a better accuracy since it had the lower value close to zero.  
+
+
+# Clustering: <br>
+Cluster analysis is one of the Pattern Recognition techniques and should be appreciated as such. It may be characterized by the use of resemblance or dissemblance measures between the objects to be identified.[13]
+
+When data points are broken into a number of groups so that those the data points belonging to the same groups are more identical to the other data pints the same group  than those belonging to different groups. In other words, it is to separate groups with same traits and locate them into clusters.[14] 
+
+
+In database design, clustering analysis can be used to group similar records into one bucket to shorten retrieval time. In the program restructuring problem, clustering analysis can be used to group together programs frequently calling one another. This grouping reduces the page faults. Clustering analysis can also be used to discover possible errors in a set of data and thus enhance data integrity.[12 clustering]
+
+We going to make predictions using two clustering techniques namely, K-Means and Hierarchical Clustering.  
+
+## K- Means Clustering <br>
+This is a type of unsupervised learning technique that is used to group observations together. K-Means is relatively easy to comprehend and can be used almost and readily applied to every type of statistical problem. Here, we used a number of clusters also known as a centroid to group together observations based on similarities. The centroid is a pivotal point or the middle with a huge hyper space. So we are doing this for K-Clusters and essentially calculate the distance between the centroids.
+
+The K-means will then merge together similarities between the two clusters. Then which ever clusters are the same or minimal in distance will be merged together. If there are no similarities then they will not be merged but will keep on iterating through as many as iterations there are. K-Means uses euclidean Distance to compare different clusters together to determine whether merging them will be possible or not. This algorithm randomly picks a point to calculate the centroid and based on that point it will look for the best position within each of the observations that has been given to calculate the centeriod from them.
+
+in other words, this algorithm randomly configures K centroids in the Data Space based on the position of each observations  where the algorithm will optimise for the best position of the centriods. The K-Means algorithm only stops when no change in centroid values occurred. Again, it only stops when the number of iterations have been reached.
+
+
+The k-means algorithm finds locally optimal solutions with respect to the clustering error. It is a fast iterative algorithm that has been used in many clustering applications. It is a point-based clustering method that starts with the cluster centers initially placed at arbitrary positions and proceeds by moving at each step the cluster centers in order to minimize the clustering error. The main disadvantage of the method lies in its sensitivity to initial positions of the cluster centers. Therefore, in order to obtain near optimal solutions using the k-means algorithm several runs must be scheduled differing in the initial positions of the cluster centers.[15]
+
+
+*Clustering Problem Statement:* The overall goal is to do a hierarchical clustering on observations in our dataset, All_crimes[4:28] (explain the range) and we will essentially compare unsuccessful crime cases (Unsuc_crimes) to the type of cluster we have generated in the to ascertain why there are more unsuccessful crimes cases in some counties than other counties.
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+
+numerical_df <- as.data.frame(scale(unsuc_df))
+
+set.seed(7)
+kcluster <- kmeans(numerical_df,2)
+kcluster
+summary(kcluster)
+fviz_cluster(kcluster, data = numerical_df, ellipse.type = 'convex')
+```
+
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+All_Crimes$Cluster <- as.character(kcluster$cluster)
+
+All_Crimes %>%
+  group_by(Cluster) %>% 
+  dplyr::summarise(avg.crime = mean(Total_crime))
+
+```
+
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+All_Crimes %>%
+  filter(Cluster==1)
+
+All_Crimes %>%
+  filter(Cluster==2)
+
+cluster_2 <- as.factor(All_Crimes$Cluster)
+
+```
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+# All_Crimes labels
+set.seed(7)
+All_Crimes.labels <- All_Crimes$County
+table(All_Crimes.labels)
+All_Crimes_data <- All_Crimes[4:28]
+view(All_Crimes_data)
+colnames(All_Crimes_data)
+
+
+#Scale the data
+## Scaling the data is incredibly important because it makes the distance unwaded and also have more of a balanced dataset when it is scaled down
+## 
+
+All_Crimes_data_scale <- scale(All_Crimes_data)
+
+#Distance Function
+All_Crimes_data <- dist(All_Crimes_data_scale)
+
+
+# Calculate how many clusters we need
+# We need to have a set or fixed input and however on how many clusters we are using because the method requires that a set of number of clusters are used in order to calculate its...
+#....centroids and center of masses and to determine what needs to be merged and what does not need to be merged.
+#..... We will do this by using an elbow plot (which is similar to the scree plot)
+
+# WSS means the sum of distances between the points and the corresponding centroids for each cluster
+# wss is a type of metrics that will be used in order to identify what needs to merged and what does not need to be merged
+
+fviz_nbclust(All_Crimes_data_scale, kmeans, method = "wss") +
+  labs(subtitle = "Elbow method")
+
+```
+
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+# We now can now utilise the elbow looking plots and determine which is a good point to identify
+
+#K-Means
+set.seed(7)
+km.out <- kmeans(All_Crimes_data_scale, centers = 3, nstart = 100)
+print(km.out)
+
+# Visualise the clustering algorithm results
+km.clusters <- km.out$cluster
+
+rownames(All_Crimes_data_scale) <- paste(All_Crimes$County, 1:dim(All_Crimes)[1], sep = "_")
+
+fviz_cluster(list(data=All_Crimes_data_scale, cluster= km.clusters))
+
+All_Crimes %>%
+  group_by(Cluster) %>%
+  dplyr::summarise(avg.crime = mean(Total_crime))
+
+All_Crimes %>%
+  filter(Cluster==1)
+
+All_Crimes %>%
+  filter(Cluster==2)
+
+All_Crimes %>%
+  filter(Cluster==3)
+
+cluster_3 <- as.factor(km.out$cluster)
+
+```
+
+## Hierarchical clustering: <br>
+In data mining hierarchical clustering works by grouping data objects into a tree of cluster[17]. It also groups the observations but does it at a very higher levels. It will typically formulate the number of clusters from either descending order or ascending other. This algorithm does not require pre-specified number of clusters  metric to use compared to the K-Means where every distance is a euclidean distance. It gives us the room to specify the distance or different distance for this particular method. 
+
+Hierarchical methods suffer from the fact that once we have performed either merge or split step, it can never be undone. This inflexibility is useful in that it leads to smaller computation costs by not having to worry about a combination number of different choices. However, such techniques cannot correct mistaken decisions that once have taken. There are two approaches that can help in improving the quality of hierarchical clustering: (1) Firstly to perform careful analysis of object linkages at each hierarchical partitioning or (2) By integrating hierarchical agglomeration and other approaches by first using a hierarchical agglomerative algorithm to group objects into micro-clusters, and then performing macro-clustering on the micro-clusters using another clustering method such as iterative relocation. [18]
+
+### Agglomeration Clustering (AGNES): 
+This is a bottom up approach in which each observation starts as its own cluster and merges with other observations that are most similar It groups these observations into huge numbers. Agglomerative hierarchical clustering algorithms can be characterized as greedy, in the algorithmic sense. A sequence of irreversible algorithm steps is used to construct the desired data structure. Assume that a pair of clusters, including possibly singletons, is merged or agglomerated at each step of the algorithm. Then the following are equivalent views of the same output structure constructed on n objects: a set of *n − 1* partitions, starting with the fine partition consisting of *n* classes and ending with the trivial partition consisting
+of just one class, the entire object set; a binary tree (one or two child nodes at each nonterminal node) commonly referred to as a dendrogram; a partially ordered set (poset) which is a subset of the power set of the n objects; and an ultrametric topology on then objects.[16]
+
+### Divisive Hierarchical Clustering: Top down approach: 
+All observations are in one group. They start to split the more different (heterogeneous) they are. This keeps on iterating through until each observations is its own cluster. In doer words, everything starts a one cluster all observations then it begins to branch of in a tree like shape with two or more branches as the number of observation decreases. It puts observations in a larger groups. It splits individual observation into its own cluster producing a set of cluster groups. From this larger set of groups, it can be further clustered into smaller groups. We can keep on iterating it until you get one cluster.
+
+### Distance Used:
+This algorithm dynamically uses different forms of distance being Euclidean Dist, Manhattan dist, Maximum Dist and many more. Distances effect the shape of the cluster
+
+Hierarchical algorithm is characterised by its different forms of 'linking' on how to combine different clusters together
+1. Complete linkage clustering: It obtains the distance between ALL the observations in cluster 1 and cluster 2 and merges the cluster together if the distances between them are a minimum. In other words, it basically combines them together if they are very close. Closely to each other than the other clusters.
+
+2. Average Linkage Clustering: This form of clustering link computes the distance between ALL the observations in two clusters like cluster 1 and cluster 2 and the averages the values.
+
+3. Centroid Linkage Clustering: This link calculates the centroid within each cluster and uses the distance between each centroid to determine to the merge. 
+
+
+The overall goal is to do a hierarchical clustering on observations in our dataset, All_crimes[4:28] (explain the range) and we will essentially compare unsuccessful crime cases (Unsuc_crimes) to the type of cluster we have generated in the to ascertain why there are more unsuccessful crimes cases in some counties than other counties.
+
+Hypothesis: 
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+
+
+set.seed(7)
+All_Crimes.labels <- All_Crimes$County
+table(All_Crimes.labels)
+All_Crimes_data <- All_Crimes[4:14]
+view(All_Crimes_data)
+colnames(All_Crimes_data)
+
+#Scale the data
+## Scaling the data is incredibly important because it makes the distance unwaded and also have more of a balanced dataset when it is scaled down
+## It makes our distance algorithm perform its takes efficiently and also not messing around with unbalanced data 
+## ....within our hyper space or dimensional space.  
+
+All_Crimes_data_std <- scale(All_Crimes_data) #standardising our dataset
+
+#Distance Function
+All_Crimes.dist <- dist(All_Crimes_data_std)
+
+# Hierarchical Clustering Algorithm
+hc.out_All_crime <- hclust(All_Crimes.dist, method = "complete")
+hc.out_All_crime
+
+#Dendrogram
+plot(hc.out_All_crime)
+rect.hclust(hc.out_All_crime, k = 3, border = 2:5)
+
+# Clusters
+All_Crimes.clusters <- cutree(hc.out_All_crime, k = 2)
+All_Crimes.clusters
+length(All_Crimes.clusters)
+
+# Visualise the Cluster
+rownames(All_Crimes_data_std) <- paste(All_Crimes$County, 1:dim(All_Crimes)[1], sep = "_")
+All_Crimes_data_std
+fviz_cluster(list(data = All_Crimes_data_std, cluster = All_Crimes.clusters))
+
+table(All_Crimes.clusters, All_Crimes$County)
+
+All_Crimes$Cluster <-  as.factor(All_Crimes.clusters)
+All_Crimes %>%
+  group_by(Cluster) %>%
+  dplyr::summarise(avg.crime = mean(Total_crime))
+
+All_Crimes %>%
+  filter(Cluster==1)
+
+All_Crimes %>%
+  filter(Cluster==2)
+
+All_Crimes %>%
+  filter(Cluster==3)
+```
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+# Using k = 2
+#Dendrogram
+plot(hc.out_All_crime)
+rect.hclust(hc.out_All_crime, k = 2, border = 2:5)
+
+# Clusters
+All_Crimes.clusters <- cutree(hc.out_All_crime, k = 2)
+All_Crimes.clusters
+length(All_Crimes.clusters)
+
+All_Crimes$Cluster <- as.factor(All_Crimes.clusters)
+
+# Visualise the Cluster
+rownames(All_Crimes_data_std) <- paste(All_Crimes$County, 1:dim(All_Crimes)[1], sep = "_")
+All_Crimes_data_std
+fviz_cluster(list(data = All_Crimes_data_std, cluster = All_Crimes.clusters))
+
+table(All_Crimes.clusters, All_Crimes$County)
+
+All_Crimes %>%
+  group_by(Cluster) %>%
+  dplyr::summarise(avg.crime = mean(Total_crime))
+
+All_Crimes %>%
+  filter(Cluster==1)
+
+All_Crimes %>%
+  filter(Cluster==2)
+
+```
+
+*Conclusion:* In comparing our observation to the cluster we have, we could deduce that Cluster 1 had the highest Unsuccessful Crime convictions and this cluster belong to Metropolitan and City with average 8571.69	unsuccessful crime convictions. 1002.07 average crime convictions was realised from the other counties all grouped in Cluster 2.
+
+The higher magnitude of unsuccessful convictions in Metropolitan and City, which is London and its immediate environs could be the overpopulation in the area as compared to a county like Gloucestershire. Due to this the authorities should ensure that enough staff are provided in that area to work properly to achieve the required results to promote Justice.  
+
+
+### Critcal Review Of The K-Means and Hierarchical clustering: <br>
+Having used both techniques, K-Means was the most effective due to its flexibility as mistakes can be corrected as compared to the robust hierarchical technique. The K-Means technique is also best for large amount of data as the hierarchical technique suffers to compute a dendogram if there is huge amount of data. Notwithstanding these, the K-means has a limitation where the number of cluster, K, must be always be determined before hand as compared to the hierarchical format. Another weakness of the K-means is that it can only handle numerical data but Hierarchical techniques can handle different data types.  
+
+
+## Classification: <br>
+Classification and regression trees are machine-learning methods for constructing prediction models from data. The models are obtained by recursively partitioning the data space and fitting a simple prediction model within each partition. As a result, the partitioning can be represented graphically as a decision tree. Classification trees are designed for dependent variables that take a finite number of unordered values, with prediction error measured in terms of misclassification cost. Regression trees are for dependent variables that take continuous or ordered discrete values, with prediction error typically measured by the squared difference between the observed and predicted values.[]
+
+### data partition (2 clusters)
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+# using 2 clusters
+All_Crimes
+# All_Crimes1 <- All_Crimes[2:dim(All_Crimes)[1],]
+# colnames(All_Crimes) <- col_names
+
+
+###Generate a random number that is 80% of the total number of rows in dataset.
+set.seed(7)
+ran <- sample(1:nrow(All_Crimes), 0.8 * nrow(All_Crimes))
+
+
+# normalization 
+All_Crimes_norm_func <-function(x) { (x -min(x))/(max(x)-min(x)) }
+All_Crimes_norm <- as.data.frame(lapply(All_Crimes[,c(4:28)], All_Crimes_norm_func))
+All_Crimes_norm$Cluster <- cluster_2
+
+# Dataset has been normalised before spliting
+##extracting training set
+All_Crimes_train <- All_Crimes_norm[ran,]
+
+##extracting testing set
+All_Crimes_test <- All_Crimes_norm[-ran,]
+
+
+
+##extracting 5th column of train dataset because it will be used as 'cl' argument in knn function.
+All_Crimes_target_category <- All_Crimes_train$Cluster
+```
+
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+##extract 5th column if test dataset to measure the accuracy
+#All_Crimes_test_category <- All_Crimes[-ran,5]
+
+##running knn function
+set.seed(7)
+knn_prediction <- knn(All_Crimes_train, All_Crimes_test, cl=All_Crimes_target_category, k=13)
+
+
+##creating confusion matrix
+conf_mat <- table(knn_prediction,All_Crimes_test$Cluster)
+confusionMatrix(knn_prediction,All_Crimes_test$Cluster)
+
+## The function above divides the correct predictions by total number of predictions that tell us
+# how accurate the model is.
+
+accuracy <- function(x){sum(diag(x)/(sum(rowSums(x)))) * 100}
+accuracy(conf_mat)
+
+```
+
+### Decision Tree 
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+ 
+
+#building the classification tree
+
+#All_Crimes$County <- as.factor(All_Crimes$County)
+
+#class(All_Crimes$County)
+
+xtree <- tree(Cluster ~., data = All_Crimes_train)
+
+summary(xtree)
+
+plot(xtree)
+
+text(xtree)
+
+```
+
+
+
+### data partition (For 3 clusters)
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+# using 3 clusters
+All_Crimes
+# All_Crimes1 <- All_Crimes[2:dim(All_Crimes)[1],]
+# colnames(All_Crimes) <- col_names
+
+
+###Generate a random number that is 80% of the total number of rows in dataset.
+set.seed(7)
+ran <- sample(1:nrow(All_Crimes), 0.8 * nrow(All_Crimes))
+
+
+# normalization 
+All_Crimes_norm_func <-function(x) { (x -min(x))/(max(x)-min(x)) }
+All_Crimes_norm <- as.data.frame(lapply(All_Crimes[,c(4:28)], All_Crimes_norm_func))
+All_Crimes_norm$Cluster <- cluster_3
+
+# Dataset has been normalised before spliting
+##extracting training set
+All_Crimes_train <- All_Crimes_norm[ran,]
+
+##extracting testing set
+All_Crimes_test <- All_Crimes_norm[-ran,]
+
+
+
+##extracting 5th column of train dataset because it will be used as 'cl' argument in knn function.
+All_Crimes_target_category <- All_Crimes_train$Cluster
+```
+
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results='hide'}
+##extract 5th column if test dataset to measure the accuracy
+#All_Crimes_test_category <- All_Crimes[-ran,5]
+
+##running knn function
+set.seed(7)
+knn_prediction <- knn(All_Crimes_train, All_Crimes_test, cl=All_Crimes_target_category, k=13)
+
+
+##creating confusion matrix
+conf_mat <- table(knn_prediction,All_Crimes_test$Cluster)
+confusionMatrix(knn_prediction,All_Crimes_test$Cluster)
+
+## The function above divides the correct predictions by total number of predictions that tell us
+# how accurate the model is.
+
+accuracy <- function(x){sum(diag(x)/(sum(rowSums(x)))) * 100}
+accuracy(conf_mat)
+
+```
+
+### Decision Tree 
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+
+
+#building the classification tree
+
+#All_Crimes$County <- as.factor(All_Crimes$County)
+
+#class(All_Crimes$County)
+
+xtree <- tree(Cluster ~., data = All_Crimes_train)
+
+summary(xtree)
+```
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+
+plot(xtree)
+
+
+
+text(xtree)
+
+xtree_pred <- predict(xtree, All_Crimes_test, type = 'class')
+confusionMatrix(xtree_pred,All_Crimes_test$Cluster)
+
+```
+
+# General Review of the Analytical Tools
+
+The data analytics tools used are linear regression, k-means, hierarchical clustering and classification. The least effective is linear regression given that it assumes that the relationship is linear. The hierarchical clustering and k-means do not assume a linear relationship. Between the k-means and the clustering method, the k-means seems to be the more effective method. Notwithstanding, although the K-Means gave a perfect classification when K=2, the accuracy for the overall accuracy confusion metric was 1 for the classification until K=2 was adjusted to k=3.
+
+
+
+
+# Comparing Land Size of Metropolitan and city to Gloucester
+
+
+## Map of Meropolitan and City (London)
+```{r, mymap , echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+myLocation <- 'London'
+
+register_google(key = 'AIzaSyDINC5fe45WyMuEGICXS4eLAAFOKv1eKAQ')
+register_google(key = 'AIzaSyAA0EnsCzDeWBlUxRn8gJJ36fEeurRF7Ec')
+register_google(key = 'AIzaSyCAKNrvt6QTLkdKlsf-Cv_dWQ3z2N5na3E')
+
+crime_map <- All_Crimes
+
+mymap <- get_map(location = myLocation, zoom = 12)
+
+ggmap(mymap)
+
+```
+
+
+#### Map of Gloucestershire
+
+```{r, mymap2, echo = FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+myLocation <- 'Gloucestershire'
+mymap <- get_map(location = myLocation, zoom = 12)
+
+ggmap(mymap)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
